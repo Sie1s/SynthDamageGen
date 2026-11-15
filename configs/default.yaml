@@ -16,9 +16,9 @@ masks:
     crack_iterations: 4
     threshold: 0.15
   irregular:
-    area_range: [0.01, 0.30]           # Доля площади повреждения
-    n_strokes: 12
-    dilation: 2
+    area_range: [0.01, 0.15]           # Доля площади повреждения
+    n_strokes: 8
+    dilation: 1
     boundary_contact_prob: 0.4
 
 # Настройки CycleGAN

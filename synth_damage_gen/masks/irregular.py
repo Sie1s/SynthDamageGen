@@ -28,9 +28,11 @@ class IrregularMaskGenerator(BaseMaskGenerator):
         target_area = rng.uniform(area_lo, area_hi) * h * w
 
         # Отверстия (пятна)
-        for _ in range(rng.integers(1, 4)):
+        n_circles = rng.integers(1, 4)
+        area_per_circle = target_area / n_circles
+        for _ in range(n_circles):
             cx, cy = rng.integers(0, w), rng.integers(0, h)
-            r = int(np.sqrt(target_area / np.pi) * rng.uniform(0.5, 1.0))
+            r = int(np.sqrt(area_per_circle / np.pi) * rng.uniform(0.5, 1.0))
             cv2.circle(mask, (cx, cy), max(1, r), 1, -1)
 
         # Штрихи (линии)
@@ -51,10 +53,10 @@ class IrregularMaskGenerator(BaseMaskGenerator):
 
             pts = [(x, y)]
             for _ in range(rng.integers(2, 5)):
-                x = int(np.clip(x + rng.integers(-w // 4, w // 4), 0, w - 1))
-                y = int(np.clip(y + rng.integers(-h // 4, h // 4), 0, h - 1))
+                x = int(np.clip(x + rng.integers(-w // 5, w // 5), 0, w - 1))
+                y = int(np.clip(y + rng.integers(-h // 5, h // 5), 0, h - 1))
                 pts.append((x, y))
-            cv2.polylines(mask, [np.array(pts, np.int32)], False, 1, thickness=int(rng.integers(2, 8)))
+            cv2.polylines(mask, [np.array(pts, np.int32)], False, 1, thickness=int(rng.integers(1, 4)))
 
         # Дилатация (утолщение) и поворот
         if dil > 0:
