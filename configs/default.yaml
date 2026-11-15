@@ -1,0 +1,44 @@
+# Общие настройки
+seed: 42
+device: "auto"          # "auto", "cpu" или "cuda"
+
+# Настройки данных
+data:
+  image_size: 256       # Если тестируете на CPU, можно временно поставить 128 для скорости
+  photobank_root: "data/photobanks"
+  cache_dir: "data/cache"
+
+# Настройки генератора масок
+masks:
+  default_generator: "irregular"       # "deterministic" или "irregular"
+  deterministic:
+    crack_thickness: 3
+    crack_iterations: 4
+    threshold: 0.15
+  irregular:
+    area_range: [0.01, 0.30]           # Доля площади повреждения
+    n_strokes: 12
+    dilation: 2
+    boundary_contact_prob: 0.4
+
+# Настройки CycleGAN
+style:
+  weights_path: "weights/cyclegan_mask.pth"
+  image_size: 256
+  lambda_cycle: 10.0
+  lambda_identity: 5.0
+  lambda_adv: 1.0
+  lambda_mask: 2.0                     # Штраф за изменение пикселей вне маски
+
+# Настройки валидации (пороги для "паспорта датасета")
+validation:
+  realism:
+    fid_threshold: 45.0
+    niqe_threshold: 6.5
+    lpips_threshold: 0.35
+  diversity:
+    w1_threshold: 0.05
+    ks_pvalue_threshold: 0.05
+  preservation:
+    psnr_threshold: 28.0
+    ssim_threshold: 0.92
