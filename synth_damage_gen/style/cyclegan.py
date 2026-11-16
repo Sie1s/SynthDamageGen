@@ -42,103 +42,63 @@ class ConditionalCycleGAN:
         self.criterion_identity = nn.L1Loss()  # Identity loss
         self.criterion_mask = nn.L1Loss()  # Mask loss (штраф за изменение вне маски)
 
-    def train_step(self, real_clean: torch.Tensor, mask: torch.Tensor) -> dict:
-        """
-        Один шаг обучения.
-        real_clean: [B, 3, H, W] - чистые фото
-        mask: [B, 1, H, W] - бинарные маски (1 - дефект, 0 - фон)
-        """
-        # =======================================================
-        # 1. Обучение Генераторов (G_AB и G_BA)
-        # =======================================================
+    def train_step(self, real_clean: torch.Tensor, real_damaged: torch.Tensor, mask: torch.Tensor) -> dict:
+        # 1. Обучение Генераторов
         self.opt_G.zero_grad()
-
-        # --- Цикл А->Б->А (Clean -> Damaged -> Clean) ---
         fake_damaged = self.G_AB(real_clean, mask)
-
-        # Восстанавливаем его обратно
         rec_clean = self.G_BA(fake_damaged, mask)
-
-        # --- Цикл Б->А->Б (Damaged -> Clean -> Damaged) ---
         fake_clean = self.G_BA(fake_damaged, mask)
         rec_damaged = self.G_AB(fake_clean, mask)
 
-        # --- Identity Loss (Сохранение цвета) ---
-        # Если подать на вход G_AB уже поврежденное фото с нулевой маской, он должен вернуть его же
         zero_mask = torch.zeros_like(mask)
         idt_damaged = self.G_AB(real_clean, zero_mask)
 
-        # --- Подсчет лоссов ---
-
-        # Прогоняем через дискриминаторы, чтобы узнать реальный размер выходного тензора
         pred_fake_damaged = self.D_B(fake_damaged, mask)
         pred_fake_clean = self.D_A(fake_clean, mask)
 
-        # Создаем тензоры меток (valid=1, fake=0) динамически, на основе выхода D
         valid_AB = torch.ones_like(pred_fake_damaged).to(self.device)
         valid_BA = torch.ones_like(pred_fake_clean).to(self.device)
 
-        # 1. Adversarial loss (Генератор пытается обмануть D_B и D_A)
         loss_GAN_AB = self.criterion_GAN(pred_fake_damaged, valid_AB)
         loss_GAN_BA = self.criterion_GAN(pred_fake_clean, valid_BA)
-
-        # 2. Cycle Consistency loss
-        loss_cycle_A = self.criterion_cycle(rec_clean, real_clean) * self.lambda_cycle
-        loss_cycle_B = self.criterion_cycle(rec_damaged, fake_damaged) * self.lambda_cycle
-
-        # 3. Identity loss
+        loss_cycle = (self.criterion_cycle(rec_clean, real_clean) + self.criterion_cycle(rec_damaged,
+                                                                                         fake_damaged)) * self.lambda_cycle
         loss_identity = self.criterion_identity(idt_damaged, real_clean) * self.lambda_identity
 
-        # 4. Mask Loss
-        # Умножаем разницу на (1 - mask), чтобы игнорировать область дефекта
         diff = torch.abs(fake_damaged - real_clean)
         loss_mask = torch.mean(diff * (1.0 - mask)) * self.lambda_mask
 
-        # Итоговый лосс Генератора
-        loss_G = loss_GAN_AB + loss_GAN_BA + loss_cycle_A + loss_cycle_B + loss_identity + loss_mask
+        loss_G = loss_GAN_AB + loss_GAN_BA + loss_cycle + loss_identity + loss_mask
         loss_G.backward()
         self.opt_G.step()
 
-        # =======================================================
-        # 2. Обучение Дискриминаторов (D_A и D_B)
-        # =======================================================
+        # 2. Обучение Дискриминаторов
         self.opt_D.zero_grad()
 
-        # Выходы дискриминаторов для реальных и фейковых данных
         pred_real_clean = self.D_A(real_clean, mask)
         pred_fake_clean_detach = self.D_A(fake_clean.detach(), mask)
 
-        pred_real_damaged = self.D_B(fake_damaged.detach(), mask)
-        pred_fake_damaged_detach = self.D_B(rec_damaged.detach(), mask)
+        pred_real_damaged = self.D_B(real_damaged, mask)
+        pred_fake_damaged_detach = self.D_B(fake_damaged.detach(), mask)
 
         # Создаем метки динамически
         valid_real = torch.ones_like(pred_real_clean).to(self.device)
         fake_real = torch.zeros_like(pred_fake_clean_detach).to(self.device)
-
         valid_damaged = torch.ones_like(pred_real_damaged).to(self.device)
         fake_damaged_labels = torch.zeros_like(pred_fake_damaged_detach).to(self.device)
 
-        # D_A учится отличать реальные чистые фото от восстановленных
-        loss_D_A_real = self.criterion_GAN(pred_real_clean, valid_real)
-        loss_D_A_fake = self.criterion_GAN(pred_fake_clean_detach, fake_real)
-        loss_D_A = (loss_D_A_real + loss_D_A_fake) * 0.5
-
-        # D_B учится отличать реальные поврежденные от сгенерированных
-        loss_D_B_real = self.criterion_GAN(pred_real_damaged, valid_damaged)
-        loss_D_B_fake = self.criterion_GAN(pred_fake_damaged_detach, fake_damaged_labels)
-        loss_D_B = (loss_D_B_real + loss_D_B_fake) * 0.5
-
+        loss_D_A = (self.criterion_GAN(pred_real_clean, valid_real) + self.criterion_GAN(pred_fake_clean_detach,
+                                                                                         fake_real)) * 0.5
+        loss_D_B = (self.criterion_GAN(pred_real_damaged, valid_damaged) + self.criterion_GAN(pred_fake_damaged_detach,
+                                                                                              fake_damaged_labels)) * 0.5
         loss_D = loss_D_A + loss_D_B
         loss_D.backward()
         self.opt_D.step()
 
         # Возвращаем статистику для логирования
         return {
-            "loss_G": loss_G.item(),
-            "loss_D": loss_D.item(),
-            "loss_cycle": (loss_cycle_A + loss_cycle_B).item(),
-            "loss_identity": loss_identity.item(),
-            "loss_mask": loss_mask.item()
+            "loss_G": loss_G.item(), "loss_D": loss_D.item(),
+            "loss_cycle": loss_cycle.item(), "loss_identity": loss_identity.item(), "loss_mask": loss_mask.item()
         }
 
     def save_checkpoint(self, filepath: str, epoch: int):

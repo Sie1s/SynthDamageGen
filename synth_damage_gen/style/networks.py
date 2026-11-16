@@ -57,8 +57,8 @@ class ResnetGenerator(nn.Module):
         # Повышение размерности (Upsampling)
         for i in range(n_downsampling):
             mult_prev = 2 ** (n_downsampling - i)
-            model += [nn.ConvTranspose2d(ngf * mult_prev, ngf * mult_prev // 2, 3,
-                                         stride=2, padding=1, output_padding=1),
+            model += [nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+                      nn.Conv2d(ngf * mult_prev, ngf * mult_prev // 2, 3, stride=1, padding=1),
                       norm_layer(ngf * mult_prev // 2),
                       nn.ReLU(True)]
 
