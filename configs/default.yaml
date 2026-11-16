@@ -28,7 +28,7 @@ style:
   lambda_cycle: 10.0
   lambda_identity: 5.0
   lambda_adv: 1.0
-  lambda_mask: 10.0                     # Штраф за изменение пикселей вне маски
+  lambda_mask: 5.0                     # Штраф за изменение пикселей вне маски
 
 # Настройки валидации (пороги для "паспорта датасета")
 validation:

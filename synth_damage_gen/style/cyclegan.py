@@ -56,8 +56,8 @@ class ConditionalCycleGAN:
         pred_fake_damaged = self.D_B(fake_damaged, mask)
         pred_fake_clean = self.D_A(fake_clean, mask)
 
-        valid_AB = torch.ones_like(pred_fake_damaged).to(self.device)
-        valid_BA = torch.ones_like(pred_fake_clean).to(self.device)
+        valid_AB = torch.full_like(pred_fake_damaged, 0.9).to(self.device)
+        valid_BA = torch.full_like(pred_fake_clean, 0.9).to(self.device)
 
         loss_GAN_AB = self.criterion_GAN(pred_fake_damaged, valid_AB)
         loss_GAN_BA = self.criterion_GAN(pred_fake_clean, valid_BA)
@@ -82,9 +82,9 @@ class ConditionalCycleGAN:
         pred_fake_damaged_detach = self.D_B(fake_damaged.detach(), mask)
 
         # Создаем метки динамически
-        valid_real = torch.ones_like(pred_real_clean).to(self.device)
+        valid_real = torch.full_like(pred_real_clean, 0.9).to(self.device)
         fake_real = torch.zeros_like(pred_fake_clean_detach).to(self.device)
-        valid_damaged = torch.ones_like(pred_real_damaged).to(self.device)
+        valid_damaged = torch.full_like(pred_real_damaged, 0.9).to(self.device)
         fake_damaged_labels = torch.zeros_like(pred_fake_damaged_detach).to(self.device)
 
         loss_D_A = (self.criterion_GAN(pred_real_clean, valid_real) + self.criterion_GAN(pred_fake_clean_detach,

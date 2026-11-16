@@ -59,7 +59,10 @@ class UnpairedDataset(Dataset):
 
         # Генерируем маску
         mask = self.mask_gen.sample_mask((self.image_size, self.image_size), seed=np.random.randint(0, 100000))
-        tensor_mask = mask.raster
+        mask_np = mask.raster.squeeze(0).numpy()
+
+        mask_np = cv2.GaussianBlur(mask_np, (9, 9), 0)
+        tensor_mask = torch.from_numpy(mask_np).float().unsqueeze(0)
 
         return tensor_clean, tensor_damaged, tensor_mask
 
