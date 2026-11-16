@@ -124,11 +124,11 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, required=True, help="Путь к папке с чистыми фото")
+    parser.add_argument("--damaged_dir", type=str, required=True, help="Путь к папке с реальными старыми фото") # <-- Добавили эту строку
     parser.add_argument("--epochs", type=int, default=50, help="Количество эпох")
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--checkpoint_dir", type=str, default="weights/")
-    parser.add_argument("--drive_dir", type=str, default=None,
-                        help="Путь в Google Drive для сохранения (только для Colab)")
+    parser.add_argument("--drive_dir", type=str, default=None, help="Путь в Google Drive для сохранения")
     parser.add_argument("--resume", action="store_true", help="Продолжить с последнего чекпоинта")
     args = parser.parse_args()
     main(args)
