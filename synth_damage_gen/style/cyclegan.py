@@ -48,27 +48,18 @@ class ConditionalCycleGAN:
         real_clean: [B, 3, H, W] - чистые фото
         mask: [B, 1, H, W] - бинарные маски (1 - дефект, 0 - фон)
         """
-        batch_size = real_clean.size(0)
-
-        # Тензоры для меток (Real=1, Fake=0)
-        valid = torch.ones((batch_size, 1, 16, 16), requires_grad=False).to(
-            self.device)  # 16x16 - размер выхода PatchGAN
-        fake = torch.zeros((batch_size, 1, 16, 16), requires_grad=False).to(self.device)
-
         # =======================================================
         # 1. Обучение Генераторов (G_AB и G_BA)
         # =======================================================
         self.opt_G.zero_grad()
 
-        # --- Цикл А->B->А (Clean -> Damaged -> Clean) ---
-        # Генерируем поврежденное фото
+        # --- Цикл А->Б->А (Clean -> Damaged -> Clean) ---
         fake_damaged = self.G_AB(real_clean, mask)
 
         # Восстанавливаем его обратно
         rec_clean = self.G_BA(fake_damaged, mask)
 
-        # --- Цикл B->А->B (Damaged -> Clean -> Damaged) ---
-        # В качестве "реального поврежденного" берем сгенерированное
+        # --- Цикл Б->А->Б (Damaged -> Clean -> Damaged) ---
         fake_clean = self.G_BA(fake_damaged, mask)
         rec_damaged = self.G_AB(fake_clean, mask)
 
@@ -78,9 +69,18 @@ class ConditionalCycleGAN:
         idt_damaged = self.G_AB(real_clean, zero_mask)
 
         # --- Подсчет лоссов ---
-        # 1. Adversarial loss (Генератор пытается обмануть D_B)
-        loss_GAN_AB = self.criterion_GAN(self.D_B(fake_damaged, mask), valid)
-        loss_GAN_BA = self.criterion_GAN(self.D_A(fake_clean, mask), valid)
+
+        # Прогоняем через дискриминаторы, чтобы узнать реальный размер выходного тензора
+        pred_fake_damaged = self.D_B(fake_damaged, mask)
+        pred_fake_clean = self.D_A(fake_clean, mask)
+
+        # Создаем тензоры меток (valid=1, fake=0) динамически, на основе выхода D
+        valid_AB = torch.ones_like(pred_fake_damaged).to(self.device)
+        valid_BA = torch.ones_like(pred_fake_clean).to(self.device)
+
+        # 1. Adversarial loss (Генератор пытается обмануть D_B и D_A)
+        loss_GAN_AB = self.criterion_GAN(pred_fake_damaged, valid_AB)
+        loss_GAN_BA = self.criterion_GAN(pred_fake_clean, valid_BA)
 
         # 2. Cycle Consistency loss
         loss_cycle_A = self.criterion_cycle(rec_clean, real_clean) * self.lambda_cycle
@@ -104,14 +104,28 @@ class ConditionalCycleGAN:
         # =======================================================
         self.opt_D.zero_grad()
 
+        # Выходы дискриминаторов для реальных и фейковых данных
+        pred_real_clean = self.D_A(real_clean, mask)
+        pred_fake_clean_detach = self.D_A(fake_clean.detach(), mask)
+
+        pred_real_damaged = self.D_B(fake_damaged.detach(), mask)
+        pred_fake_damaged_detach = self.D_B(rec_damaged.detach(), mask)
+
+        # Создаем метки динамически
+        valid_real = torch.ones_like(pred_real_clean).to(self.device)
+        fake_real = torch.zeros_like(pred_fake_clean_detach).to(self.device)
+
+        valid_damaged = torch.ones_like(pred_real_damaged).to(self.device)
+        fake_damaged_labels = torch.zeros_like(pred_fake_damaged_detach).to(self.device)
+
         # D_A учится отличать реальные чистые фото от восстановленных
-        loss_D_A_real = self.criterion_GAN(self.D_A(real_clean, mask), valid)
-        loss_D_A_fake = self.criterion_GAN(self.D_A(fake_clean.detach(), mask), fake)
+        loss_D_A_real = self.criterion_GAN(pred_real_clean, valid_real)
+        loss_D_A_fake = self.criterion_GAN(pred_fake_clean_detach, fake_real)
         loss_D_A = (loss_D_A_real + loss_D_A_fake) * 0.5
 
         # D_B учится отличать реальные поврежденные от сгенерированных
-        loss_D_B_real = self.criterion_GAN(self.D_B(fake_damaged.detach(), mask), valid)
-        loss_D_B_fake = self.criterion_GAN(self.D_B(rec_damaged.detach(), mask), fake)
+        loss_D_B_real = self.criterion_GAN(pred_real_damaged, valid_damaged)
+        loss_D_B_fake = self.criterion_GAN(pred_fake_damaged_detach, fake_damaged_labels)
         loss_D_B = (loss_D_B_real + loss_D_B_fake) * 0.5
 
         loss_D = loss_D_A + loss_D_B
