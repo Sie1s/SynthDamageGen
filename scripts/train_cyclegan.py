@@ -97,9 +97,12 @@ def main(args):
         if (epoch + 1) % 5 == 0 or (epoch + 1) == args.epochs:
             model.save_checkpoint(str(checkpoint_path), epoch + 1)
             print(f"[SAVE] Чекпоинт сохранен: {checkpoint_path}")
+
             # Дублируем в папку Google Drive (если путь указан)
             if args.drive_dir:
-                drive_path = Path(args.drive_dir) / f"epoch_{epoch + 1}.pth"
+                drive_dir = Path(args.drive_dir)
+                drive_dir.mkdir(parents=True, exist_ok=True)
+                drive_path = drive_dir / f"epoch_{epoch + 1}.pth"
                 model.save_checkpoint(str(drive_path), epoch + 1)
                 print(f"[SAVE] Копия сохранена в Drive: {drive_path}")
 
