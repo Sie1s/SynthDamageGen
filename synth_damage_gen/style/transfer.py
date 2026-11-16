@@ -3,6 +3,8 @@
 Загружает веса генератора G_AB и накладывает дефекты на изображения
 """
 import torch
+import cv2
+import numpy as np
 from pathlib import Path
 from .networks import ResnetGenerator
 
@@ -32,10 +34,22 @@ class StyleTransfer:
         clean_img = clean_img.to(self.device)
         mask = mask.to(self.device)
 
-        # Генерируем поврежденное изображение
-        damaged_img = self.G_AB(clean_img, mask)
+        # --- Размываем маску для плавных границ ---
+        # 1. Убираем все единичные размерности, получаем [H, W]
+        mask_np = mask.cpu().numpy().squeeze()
 
-        # Вне маски оставляем оригинал, внутри - сгенерированное
-        final_damaged = clean_img * (1.0 - mask) + damaged_img * mask
+        # 2. Размываем (OpenCV вернет [H, W])
+        import cv2
+        mask_np = cv2.GaussianBlur(mask_np, (9, 9), 0)
+
+        # 3. Превращаем обратно в тензор [1, 1, H, W]
+        mask_blurred = torch.from_numpy(mask_np).float().unsqueeze(0).unsqueeze(0).to(self.device)
+
+        # Генерируем поврежденное изображение (передаем размытую маску)
+        damaged_img = self.G_AB(clean_img, mask_blurred)
+
+        # На всякий случай жестко применяем маску:
+        # вне маски оставляем оригинал, внутри - сгенерированное
+        final_damaged = clean_img * (1.0 - mask_blurred) + damaged_img * mask_blurred
 
         return final_damaged

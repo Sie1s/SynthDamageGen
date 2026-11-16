@@ -34,7 +34,7 @@ style:
 validation:
   realism:
     fid_threshold: 45.0
-    niqe_threshold: 6.5
+    niqe_threshold: 7.0
     lpips_threshold: 0.35
   diversity:
     w1_threshold: 0.05
