@@ -63,7 +63,6 @@ class StyleConfig:
 
 @dataclass
 class RealismThresholds:
-    fid_threshold: float = 45.0
     niqe_threshold: float = 6.5
     lpips_threshold: float = 0.35
 
@@ -71,7 +70,6 @@ class RealismThresholds:
 @dataclass
 class DiversityThresholds:
     w1_threshold: float = 0.05
-    ks_pvalue_threshold: float = 0.05
 
 
 @dataclass

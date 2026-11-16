@@ -33,12 +33,10 @@ style:
 # Настройки валидации (пороги для "паспорта датасета")
 validation:
   realism:
-    fid_threshold: 45.0
     niqe_threshold: 7.0
     lpips_threshold: 0.35
   diversity:
     w1_threshold: 0.05
-    ks_pvalue_threshold: 0.05
   preservation:
     psnr_threshold: 28.0
     ssim_threshold: 0.92

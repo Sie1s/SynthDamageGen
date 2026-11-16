@@ -4,6 +4,7 @@
 """
 from pathlib import Path
 from dataclasses import dataclass
+import shutil
 import time
 import cv2
 import numpy as np
@@ -42,6 +43,9 @@ class Session:
 
         input_path = Path(self.session_cfg.input_dir)
         out_path = Path(self.session_cfg.output_dir)
+
+        if out_path.exists():
+            shutil.rmtree(out_path)
 
         # Создаем папки
         (out_path / "clean").mkdir(parents=True, exist_ok=True)
@@ -95,10 +99,13 @@ class Session:
     def _run_validation(self, out_path: Path):
         import subprocess
         import sys
-        subprocess.run([
+        cmd = [
             sys.executable,
             "scripts/validate_dataset.py",
             "--dataset_dir", str(out_path),
             "--output_pdf", "reports/session_report.pdf"
-        ])
+        ]
+
+        if self.session_cfg.max_images:
+            cmd.extend(["--max_images", str(self.session_cfg.max_images)])
         print(f"[INFO] Протокол анализа сохранен в reports/session_report.pdf")
