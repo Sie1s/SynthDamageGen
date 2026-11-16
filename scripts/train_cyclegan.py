@@ -16,10 +16,13 @@ from synth_damage_gen.style.cyclegan import ConditionalCycleGAN
 
 
 class UnpairedDataset(Dataset):
-    """Датасет для непарного обучения (Domain A и Domain B)."""
+    """Датасет для непарного обучения с аугментацией (для работы с малыми выборками)"""
+
     def __init__(self, clean_dir: str, damaged_dir: str, image_size: int, mask_generator):
-        self.clean_paths = [os.path.join(clean_dir, f) for f in os.listdir(clean_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-        self.damaged_paths = [os.path.join(damaged_dir, f) for f in os.listdir(damaged_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        self.clean_paths = [os.path.join(clean_dir, f) for f in os.listdir(clean_dir) if
+                            f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        self.damaged_paths = [os.path.join(damaged_dir, f) for f in os.listdir(damaged_dir) if
+                              f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         self.image_size = image_size
         self.mask_gen = mask_generator
         self.length = max(len(self.clean_paths), len(self.damaged_paths))
@@ -27,23 +30,35 @@ class UnpairedDataset(Dataset):
     def __len__(self):
         return self.length
 
-    def __getitem__(self, idx):
-        # Загружаем чистое фото (циклически, если их больше/меньше)
-        clean_path = self.clean_paths[idx % len(self.clean_paths)]
-        img_clean = cv2.imread(clean_path, cv2.IMREAD_COLOR)
-        img_clean = cv2.cvtColor(img_clean, cv2.COLOR_BGR2RGB)
-        img_clean = cv2.resize(img_clean, (self.image_size, self.image_size))
-        tensor_clean = torch.from_numpy(img_clean).float().permute(2, 0, 1) / 127.5 - 1.0
+    def _load_and_augment(self, path: str) -> torch.Tensor:
+        """Загружает картинку и применяет случайную аугментацию."""
+        img = cv2.imread(path, cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        # Загружаем реальное поврежденное фото
+        img = cv2.resize(img, (self.image_size + 20, self.image_size + 20))
+
+        dx = np.random.randint(0, 20)
+        dy = np.random.randint(0, 20)
+        img = img[dy:dy + self.image_size, dx:dx + self.image_size]
+
+        if np.random.rand() > 0.5:
+            img = cv2.flip(img, 1)
+
+        if np.random.rand() > 0.5:
+            factor = np.random.uniform(0.8, 1.2)
+            img = np.clip(img.astype(np.float32) * factor, 0, 255).astype(np.uint8)
+
+        return torch.from_numpy(img).float().permute(2, 0, 1) / 127.5 - 1.0
+
+    def __getitem__(self, idx):
+        clean_path = self.clean_paths[idx % len(self.clean_paths)]
         damaged_path = self.damaged_paths[idx % len(self.damaged_paths)]
-        img_damaged = cv2.imread(damaged_path, cv2.IMREAD_COLOR)
-        img_damaged = cv2.cvtColor(img_damaged, cv2.COLOR_BGR2RGB)
-        img_damaged = cv2.resize(img_damaged, (self.image_size, self.image_size))
-        tensor_damaged = torch.from_numpy(img_damaged).float().permute(2, 0, 1) / 127.5 - 1.0
+
+        tensor_clean = self._load_and_augment(clean_path)
+        tensor_damaged = self._load_and_augment(damaged_path)
 
         # Генерируем маску
-        mask = self.mask_gen.sample_mask((self.image_size, self.image_size), seed=idx)
+        mask = self.mask_gen.sample_mask((self.image_size, self.image_size), seed=np.random.randint(0, 100000))
         tensor_mask = mask.raster
 
         return tensor_clean, tensor_damaged, tensor_mask
@@ -101,7 +116,7 @@ def main(args):
 
             loop.set_postfix(loss_G=f"{stats['loss_G']:.3f}")
 
-        # Выводим СРЕДНИЕ значения за эпоху
+        # Выводим средние значения за эпоху
         avg_G = epoch_loss_G / len(dataloader)
         avg_D = epoch_loss_D / len(dataloader)
         avg_mask = epoch_loss_mask / len(dataloader)

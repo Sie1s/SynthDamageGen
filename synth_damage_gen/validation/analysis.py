@@ -5,6 +5,7 @@
 import os
 import urllib.request
 from pathlib import Path
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fpdf import FPDF
@@ -14,16 +15,13 @@ from .passport import DatasetPassport
 
 
 def _ensure_font() -> str:
-    """Скачивает шрифт Roboto для поддержки кириллицы в PDF, если его нет"""
-    font_dir = Path("assets")
-    font_dir.mkdir(exist_ok=True)
-    font_path = font_dir / "Roboto-Regular.ttf"
+    """Возвращает путь к шрифту с поддержкой кириллицы. Берет DejaVuSans из matplotlib."""
+    mpl_font_path = Path(matplotlib.get_data_path()) / "fonts" / "ttf" / "DejaVuSans.ttf"
+    if mpl_font_path.exists():
+        return str(mpl_font_path)
 
-    if not font_path.exists():
-        print("[INFO] Скачивание шрифта для PDF...")
-        url = "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf"
-        urllib.request.urlretrieve(url, font_path)
-    return str(font_path)
+    # Если вдруг шрифта нет (крайне маловероятно), выдаем ошибку
+    raise FileNotFoundError(f"Шрифт не найден по пути: {mpl_font_path}")
 
 
 class Analysis:
