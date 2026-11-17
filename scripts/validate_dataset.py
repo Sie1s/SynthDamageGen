@@ -12,7 +12,7 @@ import torch
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from synth_damage_gen.config import load_config, resolve_device
-from synth_damage_gen.masks import MaskGenerator
+from synth_damage_gen.masks import Mask, calculate_shape_stats
 from synth_damage_gen.metrics import (
     calculate_masked_psnr, calculate_masked_ssim,
     RealismMetrics, Quality, evaluate_mask_diversity
@@ -46,7 +46,6 @@ def main(args):
 
     psnr_vals, ssim_vals, lpips_vals, niqe_vals = [], [], [], []
     masks_for_diversity = []
-    mask_gen = MaskGenerator(cfg.masks)
 
     for idx, name in enumerate(image_names):
         # Загрузка
@@ -71,7 +70,20 @@ def main(args):
         niqe_vals.append(realism_metrics.calculate_niqe(t_damaged_0_1))
 
         # 3. Diversity (собираем статистику масок)
-        m = mask_gen.sample_mask((cfg.data.image_size, cfg.data.image_size), seed=idx)
+        mask_img = cv2.imread(str(masks_dir / name), cv2.IMREAD_GRAYSCALE)
+        mask_bin = (mask_img > 127).astype(np.uint8)
+
+        # Используем независимую функцию
+        area_share, thick_avg, tort = calculate_shape_stats(mask_bin)
+
+        m = Mask(
+            raster=torch.from_numpy(mask_bin).float().unsqueeze(0),
+            degradation_code="loaded",
+            area_share=area_share,
+            thickness_avg=thick_avg,
+            tortuosity=tort,
+            hyperparams={}
+        )
         masks_for_diversity.append(m)
 
     # Усредняем метрики

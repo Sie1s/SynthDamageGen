@@ -105,7 +105,14 @@ class Session:
             "--dataset_dir", str(out_path),
             "--output_pdf", "reports/session_report.pdf"
         ]
-
+        # Передаем ограничение по картинкам
         if self.session_cfg.max_images:
             cmd.extend(["--max_images", str(self.session_cfg.max_images)])
-        print(f"[INFO] Протокол анализа сохранен в reports/session_report.pdf")
+
+        # Запускаем дочерний процесс
+        result = subprocess.run(cmd)
+
+        if result.returncode == 0:
+            print(f"[INFO] Протокол анализа сохранен в reports/session_report.pdf")
+        else:
+            print(f"[ERROR] Ошибка при валидации!")

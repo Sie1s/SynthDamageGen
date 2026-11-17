@@ -53,7 +53,7 @@ class MaskConfig:
 
 @dataclass
 class StyleConfig:
-    weights_path: str = "weights/cyclegan_mask.pth"
+    weights_path: str = "weights/blur_cyclegan_mask_20.pth"
     image_size: int = 256
     lambda_cycle: float = 10.0
     lambda_identity: float = 5.0

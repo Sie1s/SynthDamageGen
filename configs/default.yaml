@@ -23,20 +23,20 @@ masks:
 
 # Настройки CycleGAN
 style:
-  weights_path: "weights/cyclegan_mask.pth"
+  weights_path: "weights/blur_cyclegan_mask_20.pth"
   image_size: 256
   lambda_cycle: 10.0
   lambda_identity: 5.0
   lambda_adv: 1.0
   lambda_mask: 5.0                     # Штраф за изменение пикселей вне маски
 
-# Настройки валидации (пороги для "паспорта датасета")
+# Настройки валидации
 validation:
   realism:
-    niqe_threshold: 7.0
-    lpips_threshold: 0.35
+    niqe_threshold: 6.5
+    lpips_threshold: 0.20
   diversity:
     w1_threshold: 0.05
   preservation:
-    psnr_threshold: 28.0
-    ssim_threshold: 0.92
+    psnr_threshold: 40.0
+    ssim_threshold: 0.95

@@ -65,29 +65,25 @@ class BaseMaskGenerator(ABC):
 
     @staticmethod
     def _shape_stats(raster: np.ndarray) -> Tuple[float, float, float]:
-        """
-        Вычисляет: (доля площади, средняя толщина, извилистость).
-        - Толщина считается через distance transform (максимальный радиус вписанной окружности).
-        - Извилистость — отношение длины скелета к евклидовому расстоянию между концами.
-        """
-        area_share = float(raster.mean())
-        if raster.sum() == 0:
-            return area_share, 0.0, 1.0
+        return calculate_shape_stats(raster)
 
-        # 1. Толщина
-        dt = cv2.distanceTransform(raster.astype(np.uint8), cv2.DIST_L2, 5)
-        thickness_avg = float(dt[raster > 0].mean()) * 2.0
+def calculate_shape_stats(raster: np.ndarray) -> tuple[float, float, float]:
+    """Публичная функция для расчета геометрических параметров маски."""
+    area_share = float(raster.mean())
+    if raster.sum() == 0:
+        return area_share, 0.0, 1.0
 
-        # 2. Извилистость
-        skel = skeletonize(raster > 0)
-        ys, xs = np.where(skel)
-        if len(xs) < 2:
-            tortuosity = 1.0
-        else:
-            # Берем крайние точки скелета
-            p1 = np.array([ys[0], xs[0]])
-            p2 = np.array([ys[-1], xs[-1]])
-            euclid_dist = float(np.linalg.norm(p1 - p2)) + 1e-8
-            tortuosity = float(len(xs) / euclid_dist)
+    dt = cv2.distanceTransform(raster.astype(np.uint8), cv2.DIST_L2, 5)
+    thickness_avg = float(dt[raster > 0].mean()) * 2.0
 
-        return area_share, thickness_avg, tortuosity
+    skel = skeletonize(raster > 0)
+    ys, xs = np.where(skel)
+    if len(xs) < 2:
+        tortuosity = 1.0
+    else:
+        p1 = np.array([ys[0], xs[0]])
+        p2 = np.array([ys[-1], xs[-1]])
+        euclid_dist = float(np.linalg.norm(p1 - p2)) + 1e-8
+        tortuosity = float(len(xs) / euclid_dist)
+
+    return area_share, thickness_avg, tortuosity
