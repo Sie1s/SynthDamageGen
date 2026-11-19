@@ -7,13 +7,13 @@ from scipy.stats import wasserstein_distance, ks_2samp
 from typing import List
 
 
-def calculate_wasserstein(dist1: List[float], dist2: List[float]) -> float:
+def calculate_wasserstein(mask_areas: List[float], changed_areas: List[float]) -> float:
     """
-    Расстояние Вассерштейна (Earth Mover's Distance) между двумя распределениями.
-    Показывает, насколько "дорого" переделать одно распределение в другое.
+    Расстояние Вассерштейна между площадью заданных масок
+    и фактически измененных пикселей.
     Чем меньше значение, тем ближе распределения.
     """
-    return float(wasserstein_distance(dist1, dist2))
+    return float(wasserstein_distance(mask_areas, changed_areas))
 
 
 def calculate_ks_test(dist1: List[float], dist2: List[float]) -> tuple[float, float]:

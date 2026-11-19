@@ -39,7 +39,6 @@ class StyleTransfer:
         mask_np = mask.cpu().numpy().squeeze()
 
         # 2. Размываем (OpenCV вернет [H, W])
-        import cv2
         mask_np = cv2.GaussianBlur(mask_np, (9, 9), 0)
 
         # 3. Превращаем обратно в тензор [1, 1, H, W]

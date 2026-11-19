@@ -23,7 +23,7 @@ masks:
 
 # Настройки CycleGAN
 style:
-  weights_path: "weights/blur_cyclegan_mask_20.pth"
+  weights_path: "weights/blur_cyclegan_mask_5.pth"
   image_size: 256
   lambda_cycle: 10.0
   lambda_identity: 5.0
@@ -37,6 +37,7 @@ validation:
     lpips_threshold: 0.20
   diversity:
     w1_threshold: 0.05
+    ks_pvalue_threshold: 0.05
   preservation:
     psnr_threshold: 40.0
     ssim_threshold: 0.95

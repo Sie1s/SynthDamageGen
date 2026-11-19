@@ -142,7 +142,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, required=True, help="Путь к папке с чистыми фото")
-    parser.add_argument("--damaged_dir", type=str, required=True, help="Путь к папке с реальными старыми фото") # <-- Добавили эту строку
+    parser.add_argument("--damaged_dir", type=str, required=True, help="Путь к папке с реальными старыми фото")
     parser.add_argument("--epochs", type=int, default=50, help="Количество эпох")
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--checkpoint_dir", type=str, default="weights/")

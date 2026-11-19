@@ -15,7 +15,8 @@ from synth_damage_gen.config import load_config, resolve_device
 from synth_damage_gen.masks import Mask, calculate_shape_stats
 from synth_damage_gen.metrics import (
     calculate_masked_psnr, calculate_masked_ssim,
-    RealismMetrics, Quality, evaluate_mask_diversity
+    RealismMetrics, Quality, evaluate_mask_diversity,
+    calculate_wasserstein
 )
 from synth_damage_gen.validation.passport import DatasetPassport
 from synth_damage_gen.validation.analysis import Analysis
@@ -47,6 +48,10 @@ def main(args):
     psnr_vals, ssim_vals, lpips_vals, niqe_vals = [], [], [], []
     masks_for_diversity = []
 
+    # Списки для расчета W1
+    original_mask_areas = []
+    actual_changed_areas = []
+
     for idx, name in enumerate(image_names):
         # Загрузка
         clean = cv2.imread(str(clean_dir / name))
@@ -64,16 +69,13 @@ def main(args):
         # 2. Realism (LPIPS, NIQE)
         t_clean = torch.from_numpy(clean_rgb).float().permute(2, 0, 1).unsqueeze(0) / 127.5 - 1.0
         t_damaged = torch.from_numpy(damaged_rgb).float().permute(2, 0, 1).unsqueeze(0) / 127.5 - 1.0
-        t_damaged_0_1 = (t_damaged + 1.0) / 2.0  # NIQE ожидает [0, 1]
+        t_damaged_0_1 = (t_damaged + 1.0) / 2.0
 
         lpips_vals.append(realism_metrics.calculate_lpips(t_clean, t_damaged))
         niqe_vals.append(realism_metrics.calculate_niqe(t_damaged_0_1))
 
         # 3. Diversity (собираем статистику масок)
-        mask_img = cv2.imread(str(masks_dir / name), cv2.IMREAD_GRAYSCALE)
-        mask_bin = (mask_img > 127).astype(np.uint8)
-
-        # Используем независимую функцию
+        mask_bin = (mask > 127).astype(np.uint8)
         area_share, thick_avg, tort = calculate_shape_stats(mask_bin)
 
         m = Mask(
@@ -86,7 +88,16 @@ def main(args):
         )
         masks_for_diversity.append(m)
 
-    # Усредняем метрики
+        # Запоминаем площадь исходной заданной маски
+        original_mask_areas.append(area_share)
+
+        # Вычисляем фактическую площадь изменений
+        diff = cv2.absdiff(clean_rgb, damaged_rgb)
+        diff_gray = cv2.cvtColor(diff, cv2.COLOR_RGB2GRAY)
+        changed_pixels = (diff_gray > 5).astype(np.uint8)
+        actual_changed_areas.append(float(changed_pixels.mean()))
+
+    # Усредняем базовые метрики
     avg_psnr = np.mean(psnr_vals)
     avg_ssim = np.mean(ssim_vals)
     avg_lpips = np.mean(lpips_vals)
@@ -98,24 +109,20 @@ def main(args):
     print(f"Средний NIQE: {avg_niqe:.4f}")
 
     # Формируем объекты Quality
-    qualities.append(Quality.create(q_id, "PSNR", "preservation", avg_psnr, cfg.validation.preservation.psnr_threshold,
-                                    higher_is_better=True));
-    q_id += 1
-    qualities.append(Quality.create(q_id, "SSIM", "preservation", avg_ssim, cfg.validation.preservation.ssim_threshold,
-                                    higher_is_better=True));
-    q_id += 1
-    qualities.append(Quality.create(q_id, "LPIPS", "realism", avg_lpips, cfg.validation.realism.lpips_threshold,
-                                    higher_is_better=False));
-    q_id += 1
-    qualities.append(Quality.create(q_id, "NIQE", "realism", avg_niqe, cfg.validation.realism.niqe_threshold,
-                                    higher_is_better=False));
-    q_id += 1
+    qualities.append(Quality.create(q_id, "PSNR", "preservation", avg_psnr, cfg.validation.preservation.psnr_threshold, higher_is_better=True)); q_id += 1
+    qualities.append(Quality.create(q_id, "SSIM", "preservation", avg_ssim, cfg.validation.preservation.ssim_threshold, higher_is_better=True)); q_id += 1
+    qualities.append(Quality.create(q_id, "LPIPS", "realism", avg_lpips, cfg.validation.realism.lpips_threshold, higher_is_better=False)); q_id += 1
+    qualities.append(Quality.create(q_id, "NIQE", "realism", avg_niqe, cfg.validation.realism.niqe_threshold, higher_is_better=False)); q_id += 1
 
     # 4. Diversity (Оценка масок)
     div_res = evaluate_mask_diversity(masks_for_diversity)
-    qualities.append(
-        Quality.create(q_id, "W1_Area_Var", "diversity", div_res["synth_area_std"], 0.01, higher_is_better=True));
-    q_id += 1
+
+    # Std_Area
+    qualities.append(Quality.create(q_id, "Std_Area", "diversity", div_res["synth_area_std"], 0.01, higher_is_better=True)); q_id += 1
+
+    # W1_Area
+    w1_value = calculate_wasserstein(original_mask_areas, actual_changed_areas)
+    qualities.append(Quality.create(q_id, "W1_Area", "diversity", w1_value, 0.05, higher_is_better=False)); q_id += 1
 
     # Строим паспорт и анализ
     passport = DatasetPassport(passport_id=1).build(qualities)
@@ -133,6 +140,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, default="data/synthetic_dataset")
     parser.add_argument("--output_pdf", type=str, default="reports/dataset_passport.pdf")
-    parser.add_argument("--max_images", type=int, default=100, help="Сколько картинок оценивать (для FID нужно больше)")
+    parser.add_argument("--max_images", type=int, default=100)
     args = parser.parse_args()
     main(args)
