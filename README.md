@@ -28,24 +28,25 @@
 
 ```text
 SynthDamageGen/
-├── configs/                  # Файлы конфигурации (YAML)
-├── data/                     # Датасеты (не входят в Git)
-│   ├── clean_dataset/        # Домен А (чистые фото)
-│   └── old_photos/           # Домен Б (архивные фото)
-├── reports/                  # Сгенерированные PDF-отчеты
-├── scripts/                  # Скрипты для запуска
-│   ├── generate_dataset.py   # Только генерация датасета
-│   ├── run_pipeline.py       # Полный цикл (генерация + валидация)
-│   ├── test_masks.py         # Проверка генерации масок
-│   ├── train_cyclegan.py     # Обучение модели (запускается в облаке)
-│   └── validate_dataset.py   # Только расчет метрик
-├── synth_damage_gen/         # Исходный код (библиотека)
-│   ├── masks/                # Генераторы масок
-│   ├── metrics/              # Расчет метрик качества
-│   ├── pipeline/             # Оркестратор (Session)
-│   ├── style/                # Архитектура и логика CycleGAN
-│   └── validation/           # Формирование паспорта и PDF
-├── weights/                  # Веса обученной модели (не входят в Git)
+├── configs/                        # Файлы конфигурации (YAML)
+├── data/                           # Датасеты (не входят в Git)
+│   ├── clean_dataset/              # Домен А (чистые фото)
+│   └── old_photos/                 # Домен Б (архивные фото)
+├── reports/                        # Сгенерированные PDF-отчеты
+├── scripts/                        # Скрипты для запуска
+│   ├── generate_dataset.py         # Только генерация датасета
+│   ├── run_pipeline.py             # Полный цикл (генерация + валидация)
+│   ├── test_masks.py               # Проверка генерации масок
+│   ├── train_cyclegan.py           # Обучение модели (запускается в облаке)
+│   └── validate_dataset.py         # Только расчет метрик
+├── synth_damage_gen/               # Исходный код (библиотека)
+│   ├── masks/                      # Генераторы масок
+│   ├── metrics/                    # Расчет метрик качества
+│   ├── pipeline/                   # Оркестратор (Session)
+│   ├── style/                      # Архитектура и логика CycleGAN
+│   └── validation/                 # Формирование паспорта и PDF
+├── weights/                        # Веса обученной модели (не входят в Git)
+├── SynthDamageGen_Training.ipynb   # Готовый шаблон для обучения нейросети
 ├── requirements.txt
 └── README.md
 ```
